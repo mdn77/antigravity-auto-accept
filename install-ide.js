@@ -179,7 +179,47 @@ function install() {
 
     fs.writeFileSync(workbenchHtml, html, 'utf8');
 
-    // 4. Патч webview index.html для русификации настроек
+    // 3.5. Патч workbench-jetski-agent.html (панель агента/настроек)
+    const jetskiHtmlPath = path.join(workbenchDir, 'workbench-jetski-agent.html');
+    if (fs.existsSync(jetskiHtmlPath)) {
+        const jetskiBackupPath = jetskiHtmlPath + '.backup';
+        if (!fs.existsSync(jetskiBackupPath)) {
+            fs.copyFileSync(jetskiHtmlPath, jetskiBackupPath);
+            console.log('Создан бэкап workbench-jetski-agent.html...');
+        }
+
+        // Всегда патчим из бэкапа для чистоты
+        let jetskiHtml = fs.readFileSync(jetskiBackupPath, 'utf8');
+
+        if (installRussifier) {
+            if (!jetskiHtml.includes(MARKER_RU)) {
+                const tag = `\n${MARKER_RU}\n<script src="./antig_russify.js" defer></script>\n`;
+                const pos = jetskiHtml.lastIndexOf('</html>');
+                if (pos !== -1) {
+                    jetskiHtml = jetskiHtml.slice(0, pos) + tag + jetskiHtml.slice(pos);
+                } else {
+                    jetskiHtml += tag;
+                }
+                console.log('  Добавлен тег русификатора в workbench-jetski-agent.html');
+            }
+        }
+
+        if (installClicker) {
+            if (!jetskiHtml.includes(MARKER_AC)) {
+                const tag = `\n${MARKER_AC}\n<script src="./antig_autoclicker.js" defer></script>\n`;
+                const pos = jetskiHtml.lastIndexOf('</html>');
+                if (pos !== -1) {
+                    jetskiHtml = jetskiHtml.slice(0, pos) + tag + jetskiHtml.slice(pos);
+                } else {
+                    jetskiHtml += tag;
+                }
+                console.log('  Добавлен тег автокликера в workbench-jetski-agent.html');
+            }
+        }
+
+        fs.writeFileSync(jetskiHtmlPath, jetskiHtml, 'utf8');
+    }
+
     const webviewIndexHtml = path.join(ide.appDir, 'out', 'vs', 'workbench', 'contrib', 'webview', 'browser', 'pre', 'index.html');
     if (fs.existsSync(webviewIndexHtml)) {
         const webviewBackupPath = webviewIndexHtml + '.backup';
@@ -295,7 +335,24 @@ function uninstall() {
         console.log('Теги инъекции удалены из workbench.html.');
     }
 
-    // Восстановление webview index.html
+    // Восстановление workbench-jetski-agent.html
+    const jetskiHtmlPath = path.join(path.dirname(workbenchHtml), 'workbench-jetski-agent.html');
+    const jetskiBackupPath = jetskiHtmlPath + '.backup';
+    if (fs.existsSync(jetskiBackupPath)) {
+        fs.copyFileSync(jetskiBackupPath, jetskiHtmlPath);
+        console.log('workbench-jetski-agent.html восстановлен из бэкапа.');
+    } else if (fs.existsSync(jetskiHtmlPath)) {
+        let jHtml = fs.readFileSync(jetskiHtmlPath, 'utf8');
+        const lines = jHtml.split('\n');
+        jHtml = lines.filter(line => 
+            !line.includes('antig_autoclicker.js') && 
+            !line.includes(MARKER_AC) &&
+            !line.includes('antig_russify.js') &&
+            !line.includes(MARKER_RU)
+        ).join('\n');
+        fs.writeFileSync(jetskiHtmlPath, jHtml, 'utf8');
+        console.log('Теги инъекции удалены из workbench-jetski-agent.html.');
+    }
     const webviewIndexHtml = path.join(ide.appDir, 'out', 'vs', 'workbench', 'contrib', 'webview', 'browser', 'pre', 'index.html');
     const webviewBackupPath = webviewIndexHtml + '.backup';
     const webviewRuDst = path.join(path.dirname(webviewIndexHtml), 'antig_russify.js');

@@ -4,6 +4,7 @@
  * IDE использует распакованную структуру (app/), а не app.asar.
  * Инъекция через <script> теги в workbench.html.
  * Автоматически отключает проверку целостности (checksums) в product.json.
+ * Интегрирует перевод настроек и других Webview фреймов.
  * 
  * Использование:
  *   node install-ide.js                    — Установить всё (автокликер + русификатор)
@@ -17,6 +18,7 @@ const path = require('path');
 
 const MARKER_AC = '<!-- AntiG AutoClicker -->';
 const MARKER_RU = '<!-- AntiG Russifier -->';
+const MARKER_WV = '<!-- AntiG Webview Russifier -->';
 
 function findIDEPath() {
     const platform = process.platform;
@@ -115,7 +117,7 @@ function install() {
 
     let html = fs.readFileSync(workbenchHtml, 'utf8');
 
-    // 2. Копирование и инъекция автокликера
+    // 2. Копирование и инъекция автокликера в workbench
     const acDst = path.join(workbenchDir, 'antig_autoclicker.js');
     if (installClicker) {
         console.log('Установка Автокликера...');
@@ -145,7 +147,7 @@ function install() {
         }
     }
 
-    // 3. Копирование и инъекция русификатора
+    // 3. Копирование и инъекция русификатора в workbench
     const ruDst = path.join(workbenchDir, 'antig_russify.js');
     if (installRussifier) {
         console.log('Установка Русификатора...');
@@ -177,7 +179,48 @@ function install() {
 
     fs.writeFileSync(workbenchHtml, html, 'utf8');
 
-    // 4. Патч product.json для отключения предупреждения о контрольных суммах (Integrity Check)
+    // 4. Патч webview index.html для русификации настроек
+    const webviewIndexHtml = path.join(ide.appDir, 'out', 'vs', 'workbench', 'contrib', 'webview', 'browser', 'pre', 'index.html');
+    if (fs.existsSync(webviewIndexHtml)) {
+        const webviewBackupPath = webviewIndexHtml + '.backup';
+        const webviewRuDst = path.join(path.dirname(webviewIndexHtml), 'antig_russify.js');
+        
+        if (installRussifier) {
+            // Бэкап
+            if (!fs.existsSync(webviewBackupPath)) {
+                fs.copyFileSync(webviewIndexHtml, webviewBackupPath);
+                console.log('Создан бэкап webview/index.html...');
+            }
+            // Копирование
+            const ruSrc = path.join(__dirname, 'russify.js');
+            fs.copyFileSync(ruSrc, webviewRuDst);
+            console.log('  Скопирован русификатор для webview:', webviewRuDst);
+            // Инъекция
+            let wvh = fs.readFileSync(webviewIndexHtml, 'utf8');
+            if (!wvh.includes(MARKER_WV)) {
+                const tag = `\n\t${MARKER_WV}\n\t<script src="./antig_russify.js"></script>\n`;
+                wvh = wvh.replace('</head>', `${tag}</head>`);
+                fs.writeFileSync(webviewIndexHtml, wvh, 'utf8');
+                console.log('  Добавлен тег русификатора в webview/index.html');
+            }
+        } else {
+            // Удаление если устанавливаем только кликер
+            if (fs.existsSync(webviewBackupPath)) {
+                fs.copyFileSync(webviewBackupPath, webviewIndexHtml);
+            } else {
+                let wvh = fs.readFileSync(webviewIndexHtml, 'utf8');
+                const lines = wvh.split('\n');
+                wvh = lines.filter(line => !line.includes('antig_russify.js') && !line.includes(MARKER_WV)).join('\n');
+                fs.writeFileSync(webviewIndexHtml, wvh, 'utf8');
+            }
+            if (fs.existsSync(webviewRuDst)) {
+                fs.unlinkSync(webviewRuDst);
+            }
+            console.log('  Удален русификатор из webview.');
+        }
+    }
+
+    // 5. Патч product.json для отключения предупреждения о контрольных суммах (Integrity Check)
     try {
         const productJsonPath = path.join(ide.resourcesDir, 'app', 'product.json');
         if (fs.existsSync(productJsonPath)) {
@@ -238,6 +281,27 @@ function uninstall() {
         ).join('\n');
         fs.writeFileSync(workbenchHtml, html, 'utf8');
         console.log('Теги инъекции удалены из workbench.html.');
+    }
+
+    // Восстановление webview index.html
+    const webviewIndexHtml = path.join(ide.appDir, 'out', 'vs', 'workbench', 'contrib', 'webview', 'browser', 'pre', 'index.html');
+    const webviewBackupPath = webviewIndexHtml + '.backup';
+    const webviewRuDst = path.join(path.dirname(webviewIndexHtml), 'antig_russify.js');
+
+    if (fs.existsSync(webviewBackupPath)) {
+        fs.copyFileSync(webviewBackupPath, webviewIndexHtml);
+        console.log('webview/index.html восстановлен из бэкапа.');
+    } else if (fs.existsSync(webviewIndexHtml)) {
+        let wvh = fs.readFileSync(webviewIndexHtml, 'utf8');
+        const lines = wvh.split('\n');
+        wvh = lines.filter(line => !line.includes('antig_russify.js') && !line.includes(MARKER_WV)).join('\n');
+        fs.writeFileSync(webviewIndexHtml, wvh, 'utf8');
+        console.log('Теги инъекции удалены из webview/index.html.');
+    }
+
+    if (fs.existsSync(webviewRuDst)) {
+        fs.unlinkSync(webviewRuDst);
+        console.log('antig_russify.js удален из webview.');
     }
 
     // Восстановление product.json

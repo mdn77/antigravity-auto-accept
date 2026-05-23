@@ -345,11 +345,26 @@ function russify(){russifyNode(document.body);}
 function init(){
     if(!document.body){setTimeout(init,500);return;}
     russify();st.riv=setInterval(russify,3000);
+    
+    // Поддержка перевода внутри webview iframe
+    var isWebviewHost = !!document.getElementById('active-frame') || window.location.pathname.indexOf('webview') >= 0;
+    if (isWebviewHost) {
+        st.wvRiv = setInterval(function() {
+            var frame = document.getElementById('active-frame') || document.getElementById('pending-frame');
+            if (frame && frame.contentDocument) {
+                russifyNode(frame.contentDocument);
+            }
+        }, 1000);
+        console.log('[RU] Запущен мониторинг фрейма webview');
+    }
+    
     console.log('[RU] v28 русификатор запущен');
 }
 setTimeout(init,document.querySelector('.monaco-workbench')?4000:500);
 
 window.__ANTIG_RUSSIFY={destroy:function(){
     clearInterval(st.riv);st.riv=null;
+    if(st.wvRiv){clearInterval(st.wvRiv);st.wvRiv=null;}
 }};
+window.__ANTIG_RUSSIFY_NODE = russifyNode;
 })();

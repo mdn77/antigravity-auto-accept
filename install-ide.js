@@ -128,6 +128,32 @@ function install() {
         console.log('  Тег добавлен в workbench.html');
     }
 
+    // 3.5. Патч workbench-jetski-agent.html (панель агента/настроек)
+    const jetskiHtmlPath = path.join(workbenchDir, 'workbench-jetski-agent.html');
+    if (fs.existsSync(jetskiHtmlPath)) {
+        const jetskiBackupPath = jetskiHtmlPath + '.backup';
+        if (!fs.existsSync(jetskiBackupPath)) {
+            fs.copyFileSync(jetskiHtmlPath, jetskiBackupPath);
+            console.log('Создан бэкап workbench-jetski-agent.html...');
+        }
+
+        // Всегда патчим из бэкапа для чистоты
+        let jetskiHtml = fs.readFileSync(jetskiBackupPath, 'utf8');
+
+        if (!jetskiHtml.includes(MARKER)) {
+            const tag = `\n${MARKER}\n<script src="./antig_russify.js" defer></script>\n`;
+            const pos = jetskiHtml.lastIndexOf('</html>');
+            if (pos !== -1) {
+                jetskiHtml = jetskiHtml.slice(0, pos) + tag + jetskiHtml.slice(pos);
+            } else {
+                jetskiHtml += tag;
+            }
+            console.log('  Добавлен тег русификатора в workbench-jetski-agent.html');
+        }
+
+        fs.writeFileSync(jetskiHtmlPath, jetskiHtml, 'utf8');
+    }
+
     // 4. Патч webview index.html для русификации настроек
     const webviewIndexHtml = path.join(ide.appDir, 'out', 'vs', 'workbench', 'contrib', 'webview', 'browser', 'pre', 'index.html');
     if (fs.existsSync(webviewIndexHtml)) {
@@ -217,6 +243,23 @@ function uninstall() {
         html = lines.filter(line => !line.includes('antig_russify.js') && !line.includes(MARKER)).join('\n');
         fs.writeFileSync(workbenchHtml, html, 'utf8');
         console.log('Теги инъекции удалены из workbench.html.');
+    }
+
+    // Восстановление workbench-jetski-agent.html
+    const jetskiHtmlPath = path.join(path.dirname(workbenchHtml), 'workbench-jetski-agent.html');
+    const jetskiBackupPath2 = jetskiHtmlPath + '.backup';
+    if (fs.existsSync(jetskiBackupPath2)) {
+        fs.copyFileSync(jetskiBackupPath2, jetskiHtmlPath);
+        console.log('workbench-jetski-agent.html восстановлен из бэкапа.');
+    } else if (fs.existsSync(jetskiHtmlPath)) {
+        let jHtml = fs.readFileSync(jetskiHtmlPath, 'utf8');
+        const lines = jHtml.split('\n');
+        jHtml = lines.filter(line => 
+            !line.includes('antig_russify.js') &&
+            !line.includes(MARKER)
+        ).join('\n');
+        fs.writeFileSync(jetskiHtmlPath, jHtml, 'utf8');
+        console.log('Теги инъекции удалены из workbench-jetski-agent.html.');
     }
 
     // Восстановление webview index.html

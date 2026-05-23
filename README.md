@@ -1,6 +1,6 @@
 # Antigravity Auto-Accept
 
-Универсальный автокликер для **Antigravity Chat 2.0**.  
+Универсальный автокликер для **Antigravity Chat 2.0** и **Antigravity IDE**.  
 Автоматически нажимает кнопки Submit/Отправить, Retry/Повторить, Accept/Разрешить.
 
 > Работает на **любом языке** — до и после русификации интерфейса.
@@ -14,38 +14,65 @@
 - ⏸️ **Пауза при активности** — не кликает когда работает пользователь
 - 🌐 **Универсальный** — EN + RU, не зависит от CSS-классов
 
-## Установка (Chat 2.0)
+## Установка
 
 ### Требования
 - Node.js 18+
-- Antigravity Chat 2.0 установлен
+- Antigravity Chat 2.0 и/или Antigravity IDE
 
 ### Быстрая установка
 
 ```bash
 git clone https://github.com/mdn77/antigravity-auto-accept.git
 cd antigravity-auto-accept
+```
+
+#### Для Chat 2.0 (Electron-приложение)
+
+```bash
 node install.js
+```
+
+#### Для Antigravity IDE
+
+```bash
+node install-ide.js
+```
+
+#### Для обоих сразу
+
+```bash
+node install.js && node install-ide.js
 ```
 
 ### Удаление
 
 ```bash
+# Chat 2.0
 node install.js --uninstall
-```
 
-Восстанавливает оригинальный `app.asar` из бэкапа.
+# IDE
+node install-ide.js --uninstall
+```
 
 ## Как это работает
 
+### Chat 2.0
 1. `install.js` создаёт бэкап `app.asar` → `app.asar.backup`
 2. Распаковывает архив, внедряет `autoclicker.js` в `dist/`
 3. Добавляет загрузчик в `utils.js` (метод `executeJavaScript`)
 4. Собирает `app.asar` обратно
 
-После перезапуска Antigravity виджет **AutoClick** появится в правом нижнем углу.
+### IDE
+1. `install-ide.js` создаёт бэкап `workbench.html` → `workbench.html.backup`
+2. Копирует `autoclicker.js` в директорию workbench
+3. Добавляет `<script>` тег в `workbench.html`
+
+> ⚠️ После обновления Antigravity может потребоваться повторная установка.
 
 ## Виджет управления
+
+После установки и перезапуска появится виджет **AutoClick** в правом нижнем углу:
 
 | Настройка | Описание |
 |---|---|
@@ -65,7 +92,7 @@ node install.js --uninstall
 
 ## Версия
 
-- **v23** — универсальная поддержка EN+RU, независимость от CSS-классов
+- **v23** — универсальная поддержка EN+RU, Chat 2.0 + IDE, независимость от CSS-классов
 
 ## Лицензия
 

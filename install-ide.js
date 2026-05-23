@@ -191,17 +191,29 @@ function install() {
                 fs.copyFileSync(webviewIndexHtml, webviewBackupPath);
                 console.log('Создан бэкап webview/index.html...');
             }
-            // Копирование
+            
+            // Всегда берем чистый файл из бэкапа
+            let wvh = fs.readFileSync(webviewBackupPath, 'utf8');
+            
+            // Очищаем старые остаточные теги русификатора, если они попали в бэкап
+            wvh = wvh.split('\n').filter(line => !line.includes('antig_russify.js') && !line.includes(MARKER_WV)).join('\n');
+            
+            // 1. Отключаем CSP ограничения на inline-скрипты
+            wvh = wvh.replace(/script-src 'sha256-[^']+' 'self'/g, "script-src 'unsafe-inline' 'unsafe-eval' 'self'");
+            
+            // 2. Читаем код русификатора и внедряем его как инлайн-скрипт
             const ruSrc = path.join(__dirname, 'russify.js');
-            fs.copyFileSync(ruSrc, webviewRuDst);
-            console.log('  Скопирован русификатор для webview:', webviewRuDst);
-            // Инъекция
-            let wvh = fs.readFileSync(webviewIndexHtml, 'utf8');
-            if (!wvh.includes(MARKER_WV)) {
-                const tag = `\n\t${MARKER_WV}\n\t<script src="./antig_russify.js"></script>\n`;
-                wvh = wvh.replace('</head>', `${tag}</head>`);
-                fs.writeFileSync(webviewIndexHtml, wvh, 'utf8');
-                console.log('  Добавлен тег русификатора в webview/index.html');
+            const ruCode = fs.readFileSync(ruSrc, 'utf8');
+            
+            const tag = `\n\t${MARKER_WV}\n\t<script>\n${ruCode}\n\t</script>\n`;
+            wvh = wvh.replace('</head>', `${tag}</head>`);
+            
+            fs.writeFileSync(webviewIndexHtml, wvh, 'utf8');
+            console.log('  Внедрен инлайн-русификатор в webview/index.html с обходом CSP');
+            
+            // Удаляем старый внешний файл, если остался
+            if (fs.existsSync(webviewRuDst)) {
+                fs.unlinkSync(webviewRuDst);
             }
         } else {
             // Удаление если устанавливаем только кликер

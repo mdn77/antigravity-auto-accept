@@ -318,7 +318,7 @@ function russifyNode(root){
         if(t&&TR[t]){n.textContent=n.textContent.replace(t,TR[t]);continue;}
         for(var i=0; i<TR_KEYS.length; i++){
             var k=TR_KEYS[i];
-            if(k.length>3&&t.indexOf(k)>=0){n.textContent=n.textContent.replaceAll(k,TR[k]);}
+            if(k.length>3&&t.indexOf(k)>=0){n.textContent=n.textContent.split(k).join(TR[k]);}
         }
     }
     // 2. Элементы, Shadow DOM, Iframes

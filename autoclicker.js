@@ -100,6 +100,26 @@ var TR={
     'You currently don\'t have any MCP Servers installed. Add an MCP server above or add a custom one via the MCP Config.':
         'MCP-серверы не установлены. Добавьте сервер или настройте через конфиг.',
     'Build With Google Plugins':'Плагины Google','Customize':'Настроить',
+    // Уведомления
+    'Manage your notification preferences.':'Управление настройками уведомлений.',
+    'Notification Settings':'Настройки уведомлений',
+    'To modify notification settings, open your operating system\'s system preferences.':
+        'Для изменения настроек откройте системные настройки ОС.',
+    'Open System Preferences':'Системные настройки',
+    // Модели
+    'Select a model':'Выберите модель','Default model':'Модель по умолчанию',
+    'Model Settings':'Настройки модели',
+    'Configure your default model and model-specific settings.':
+        'Настройте модель по умолчанию и параметры моделей.',
+    // Браузер
+    'Configure browser settings for Agent.':'Настройки браузера для агента.',
+    'Browser Settings':'Настройки браузера',
+    // Редактор
+    'Configure editor settings.':'Настройки редактора.',
+    'Editor Settings':'Настройки редактора',
+    // Общие
+    'Configure general settings.':'Общие настройки.',
+    'Language':'Язык','Theme':'Тема',
     // Горячие клавиши
     'Open Command':'Открыть команду','No shortcut':'Нет',
     'Open Agent':'Открыть агента',

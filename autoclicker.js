@@ -33,7 +33,8 @@ var TR={
     'Tab Speed':'Скорость','Tab to Import':'Импорт по Tab',
     'Tab to Jump':'Переход по Tab','Snooze':'Пауза','Start':'Начать',
     'On':'Вкл','Off':'Выкл','Fast':'Быстро','Normal':'Нормально','Slow':'Медленно',
-    'Always proceed':'Всегда выполнять','Always Ask':'Всегда спрашивать',
+    'Always proceed':'Всегда выполнять','Always Proceed':'Всегда выполнять',
+    'Always Ask':'Всегда спрашивать',
     // Безопасность
     'Agent security mode':'Режим безопасности агента',
     'Select one of the three options. Agent settings and permissions can be further customized below.':
@@ -179,12 +180,30 @@ function sweepDots(){
 }
 function scan(){if(!st.on||st.sweeping||isPaused())return;clickAll(SUBMIT)||clickRetry()||clickAll(ACCEPT);}
 
-// === РУСИФИКАЦИЯ ===
+// === РУСИФИКАЦИЯ (двойной проход: узлы + элементы + подстроки) ===
 function russify(){
+    // 1. Текстовые узлы (короткие строки)
     var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false),n;
-    while(n=w.nextNode()){var t=n.textContent.trim();if(t&&TR[t])n.textContent=n.textContent.replace(t,TR[t]);}
+    while(n=w.nextNode()){
+        var t=n.textContent.trim();
+        if(t&&TR[t]){n.textContent=n.textContent.replace(t,TR[t]);continue;}
+        // Подстрочная замена для частей длинных строк
+        for(var k in TR){
+            if(k.length>3&&t.indexOf(k)>=0){n.textContent=n.textContent.replace(k,TR[k]);break;}
+        }
+    }
+    // 2. Элементы без дочерних тегов
+    document.querySelectorAll('span,p,div,label,h1,h2,h3,h4,td,th,li,a,button').forEach(function(el){
+        if(el.children.length>0)return;
+        var t=el.textContent.trim();
+        if(t&&TR[t])el.textContent=TR[t];
+    });
+    // 3. Плейсхолдеры
     document.querySelectorAll('[placeholder]').forEach(function(el){var p=el.placeholder.trim();if(TR[p])el.placeholder=TR[p];});
+    // 4. Тултипы
     document.querySelectorAll('[title]').forEach(function(el){var t=el.title.trim();if(TR[t])el.title=TR[t];});
+    // 5. aria-label
+    document.querySelectorAll('[aria-label]').forEach(function(el){var a=el.getAttribute('aria-label');if(a&&TR[a.trim()])el.setAttribute('aria-label',TR[a.trim()]);});
 }
 
 // === UI ===
@@ -281,12 +300,16 @@ function createChat(){
 function createUI(){
     ['ac-bar','ac-popup'].forEach(function(id){var o=document.getElementById(id);if(o)o.remove();});
 
-    // Определяем среду
+    // Определяем среду по DOM, не по title
+    var hasStatusbar=!!document.querySelector('.part.statusbar');
     var isIDE=!!document.querySelector('.monaco-workbench');
-    var isSettings=!!(document.title&&(document.title.indexOf('Settings')>=0));
-
-    if(isSettings){
-        // В окне Settings — только русификация, без виджета
+    // Settings окно: нет статусбара
+    if(isIDE&&!hasStatusbar){
+        // Окно Settings — только русификация, без виджета
+        return;
+    }
+    if(!isIDE&&!document.querySelector('[data-testid]')&&!document.querySelector('.bg-background')){
+        // Неизвестное окно — только русификация
         return;
     }
 

@@ -239,13 +239,19 @@ function makeEl(tag,css,text){
 }
 
 function createBar(){
+    // Не создаём виджет в окнах Settings/настроек
+    var title=document.title||'';
+    if(title.indexOf('Settings')>=0||title.indexOf('Настройки')>=0)return;
+
     var old=document.getElementById('ac-bar');
     if(old)old.remove();
     var oldPopup=document.getElementById('ac-popup');
     if(oldPopup)oldPopup.remove();
 
-    // Кнопка в правом нижнем углу (как часть статусбара)
-    var bar=makeEl('div','position:fixed;bottom:0;right:150px;height:22px;display:flex;align-items:center;gap:6px;padding:0 10px;background:rgba(0,122,204,0.9);color:#fff;font:11px -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;z-index:999999;user-select:none;');
+    // Кнопка над статусбаром (bottom:22px для IDE, bottom:0 для Chat 2.0)
+    var isIDE=!!document.querySelector('.monaco-workbench');
+    var bottom=isIDE?'22px':'0';
+    var bar=makeEl('div','position:fixed;bottom:'+bottom+';right:8px;height:22px;display:flex;align-items:center;gap:6px;padding:0 10px;background:rgba(0,122,204,0.9);color:#fff;font:11px -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;z-index:999999;user-select:none;border-radius:4px 4px 0 0;');
     bar.id='ac-bar';
 
     var led=makeEl('span','width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80;');
@@ -262,7 +268,8 @@ function createBar(){
     st.ui=bar;
 
     // Всплывающая панель
-    var popup=makeEl('div','display:none;position:fixed;bottom:24px;right:150px;background:rgba(24,24,27,0.97);backdrop-filter:blur(16px);color:#e0e0e0;padding:12px 16px;border-radius:10px;box-shadow:0 -4px 24px rgba(0,0,0,0.5);font:12px -apple-system,BlinkMacSystemFont,sans-serif;z-index:999999;border:1px solid rgba(255,255,255,0.1);user-select:none;min-width:200px;');
+    var popupBottom=isIDE?'46px':'24px';
+    var popup=makeEl('div','display:none;position:fixed;bottom:'+popupBottom+';right:8px;background:rgba(24,24,27,0.97);backdrop-filter:blur(16px);color:#e0e0e0;padding:12px 16px;border-radius:10px;box-shadow:0 -4px 24px rgba(0,0,0,0.5);font:12px -apple-system,BlinkMacSystemFont,sans-serif;z-index:999999;border:1px solid rgba(255,255,255,0.1);user-select:none;min-width:200px;');
     popup.id='ac-popup';
 
     // Переключатели

@@ -1,6 +1,6 @@
 {
   "name": "antigravity-auto-accept",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Auto-accept tool for Antigravity IDE. Automatically clicks Submit/Accept/Retry buttons with smart project switching and user activity detection.",
   "main": "install.js",
   "scripts": {

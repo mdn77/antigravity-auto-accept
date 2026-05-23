@@ -3,6 +3,7 @@
  * 
  * IDE использует распакованную структуру (app/), а не app.asar.
  * Инъекция через <script> теги в workbench.html.
+ * Автоматически отключает проверку целостности (checksums) в product.json.
  * 
  * Использование:
  *   node install-ide.js                    — Установить всё (автокликер + русификатор)
@@ -106,7 +107,7 @@ function install() {
     const workbenchDir = path.dirname(workbenchHtml);
     const backupPath = workbenchHtml + '.backup';
 
-    // 1. Создание бэкапа
+    // 1. Создание бэкапа workbench.html
     if (!fs.existsSync(backupPath)) {
         console.log('Создание бэкапа workbench.html...');
         fs.copyFileSync(workbenchHtml, backupPath);
@@ -133,11 +134,10 @@ function install() {
             console.log('  Добавлен тег автокликера в workbench.html');
         }
     } else {
-        // Удаляем из html если был
         if (html.includes(MARKER_AC)) {
             const lines = html.split('\n');
             html = lines.filter(line => !line.includes('antig_autoclicker.js') && !line.includes(MARKER_AC)).join('\n');
-            console.log('  Тег автокликера исключен/удален из html.');
+            console.log('  Тег автокликера удален из html.');
         }
         if (fs.existsSync(acDst)) {
             fs.unlinkSync(acDst);
@@ -164,11 +164,10 @@ function install() {
             console.log('  Добавлен тег русификатора в workbench.html');
         }
     } else {
-        // Удаляем из html если был
         if (html.includes(MARKER_RU)) {
             const lines = html.split('\n');
             html = lines.filter(line => !line.includes('antig_russify.js') && !line.includes(MARKER_RU)).join('\n');
-            console.log('  Тег русификатора исключен/удален из html.');
+            console.log('  Тег русификатора удален из html.');
         }
         if (fs.existsSync(ruDst)) {
             fs.unlinkSync(ruDst);
@@ -177,6 +176,27 @@ function install() {
     }
 
     fs.writeFileSync(workbenchHtml, html, 'utf8');
+
+    // 4. Патч product.json для отключения предупреждения о контрольных суммах (Integrity Check)
+    try {
+        const productJsonPath = path.join(ide.resourcesDir, 'app', 'product.json');
+        if (fs.existsSync(productJsonPath)) {
+            const backupProduct = productJsonPath + '.backup';
+            if (!fs.existsSync(backupProduct)) {
+                fs.copyFileSync(productJsonPath, backupProduct);
+                console.log('Создан бэкап product.json...');
+            }
+            let data = JSON.parse(fs.readFileSync(productJsonPath, 'utf8'));
+            if (data.checksums && Object.keys(data.checksums).length > 0) {
+                data.checksums = {};
+                fs.writeFileSync(productJsonPath, JSON.stringify(data, null, '\t'), 'utf8');
+                console.log('Проверка контрольных сумм отключена в product.json (решает ошибку «установка повреждена»).');
+            }
+        }
+    } catch (e) {
+        console.log('Не удалось модифицировать product.json:', e.message);
+    }
+
     console.log('\n=== Установка завершена! ===');
     console.log('Пожалуйста, перезапустите Antigravity IDE.');
 }
@@ -197,9 +217,13 @@ function uninstall() {
     }
 
     const backupPath = workbenchHtml + '.backup';
+    const backupProduct = path.join(ide.resourcesDir, 'app', 'product.json.backup');
+    const productJsonPath = path.join(ide.resourcesDir, 'app', 'product.json');
+
     const acDst = path.join(path.dirname(workbenchHtml), 'antig_autoclicker.js');
     const ruDst = path.join(path.dirname(workbenchHtml), 'antig_russify.js');
 
+    // Восстановление workbench.html
     if (fs.existsSync(backupPath)) {
         fs.copyFileSync(backupPath, workbenchHtml);
         console.log('workbench.html восстановлен из бэкапа.');
@@ -214,6 +238,12 @@ function uninstall() {
         ).join('\n');
         fs.writeFileSync(workbenchHtml, html, 'utf8');
         console.log('Теги инъекции удалены из workbench.html.');
+    }
+
+    // Восстановление product.json
+    if (fs.existsSync(backupProduct)) {
+        fs.copyFileSync(backupProduct, productJsonPath);
+        console.log('product.json восстановлен из оригинального бэкапа (включена проверка целостности).');
     }
 
     if (fs.existsSync(acDst)) {

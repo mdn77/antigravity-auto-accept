@@ -1,0 +1,26 @@
+{
+  "name": "antigravity-auto-accept",
+  "version": "1.0.0",
+  "description": "Auto-accept tool for Antigravity IDE. Automatically clicks Submit/Accept/Retry buttons with smart project switching and user activity detection.",
+  "main": "install.js",
+  "scripts": {
+    "install-plugin": "node install.js",
+    "uninstall-plugin": "node install.js --uninstall"
+  },
+  "keywords": [
+    "antigravity",
+    "auto-accept",
+    "auto-click",
+    "auto-approve",
+    "automation",
+    "ide",
+    "productivity",
+    "developer-tools"
+  ],
+  "author": "mdn77",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mdn77/antigravity-auto-accept.git"
+  }
+}

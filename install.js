@@ -80,40 +80,55 @@ function install() {
         process.exit(1);
     }
 
-    // Шаг 3: Запись скрипта автокликера
+    // Шаг 3: Внедрение автокликера
     console.log('[3/4] Внедрение автокликера...');
     const autoclickerSrc = path.join(__dirname, 'autoclicker.js');
     const autoclickerDst = path.join(extractDir, 'dist', 'antig_autoclicker.js');
     fs.copyFileSync(autoclickerSrc, autoclickerDst);
 
-    // Добавление точки входа (лоадера) в конец utils.js
+    // Внедрение загрузчика в utils.js через executeJavaScript (Antigravity 2.0.6+)
+    // utils.js — main-процесс, window/document недоступны.
+    // Правильный метод: executeJavaScript в обработчике did-finish-load.
     const utilsPath = path.join(extractDir, 'dist', 'utils.js');
     if (fs.existsSync(utilsPath)) {
         let utilsContent = fs.readFileSync(utilsPath, 'utf8');
         if (!utilsContent.includes('antig_autoclicker')) {
+            // Ищем обработчик did-finish-load (AntiG widget или стандартный)
+            const didFinishMarker = "win.webContents.on('did-finish-load'";
+            const markerPos = utilsContent.indexOf(didFinishMarker);
+            
+            // Код инъекции через executeJavaScript (работает с contextIsolation: true)
             const injectionCode = `
-// --- Загрузчик Antigravity Auto-Accept ---
-try {
-    if (typeof window !== 'undefined') {
-        const _acWait = setInterval(() => {
-            if (document.body) {
-                clearInterval(_acWait);
-                try {
-                    const acPath = require('path').join(__dirname, 'antig_autoclicker.js');
-                    const acCode = require('fs').readFileSync(acPath, 'utf8');
-                    const acScript = document.createElement('script');
-                    acScript.textContent = acCode;
-                    document.body.appendChild(acScript);
-                } catch(e) { console.log('[AC] Ошибка загрузки:', e.message); }
-            }
-        }, 500);
-    }
-} catch(e) {}
-// --- Конец загрузчика Auto-Accept ---
+    // --- Автокликер Auto-Accept (загрузка через executeJavaScript) ---
+    win.webContents.on('did-finish-load', () => {
+        try {
+            const acPath = require('path').join(__dirname, 'antig_autoclicker.js');
+            const acCode = require('fs').readFileSync(acPath, 'utf8');
+            win.webContents.executeJavaScript(acCode).catch(() => {});
+            console.log('[AC] Автокликер внедрён через executeJavaScript');
+        } catch(e) { console.error('[AC] Ошибка загрузки автокликера:', e); }
+    });
+    // --- Конец загрузчика Auto-Accept ---
 `;
-            utilsContent += injectionCode;
+
+            if (markerPos !== -1) {
+                // Вставляем ДО существующего did-finish-load
+                utilsContent = utilsContent.slice(0, markerPos) + injectionCode + utilsContent.slice(markerPos);
+            } else {
+                // Fallback: ищем void win.loadURL(url) и вставляем после
+                const loadUrlMarker = 'void win.loadURL(url)';
+                const loadPos = utilsContent.indexOf(loadUrlMarker);
+                if (loadPos !== -1) {
+                    const insertPos = utilsContent.indexOf(';', loadPos) + 1;
+                    utilsContent = utilsContent.slice(0, insertPos) + '\n' + injectionCode + utilsContent.slice(insertPos);
+                } else {
+                    // Крайний fallback: добавляем в конец (менее надёжно)
+                    utilsContent += injectionCode;
+                    console.log('  ВНИМАНИЕ: не найден did-finish-load, код добавлен в конец файла');
+                }
+            }
             fs.writeFileSync(utilsPath, utilsContent, 'utf8');
-            console.log('  Точка загрузки интегрирована в utils.js');
+            console.log('  Точка загрузки интегрирована в utils.js (метод: executeJavaScript)');
         } else {
             console.log('  Точка загрузки уже присутствует в utils.js');
         }

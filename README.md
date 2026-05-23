@@ -3,7 +3,7 @@
 > Автоматически нажимает кнопки Submit, Accept и Retry в [Antigravity IDE](https://antigravity.dev), позволяя вам сосредоточиться на работе.
 
 ![Платформа](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
-![Версия](https://img.shields.io/badge/version-1.0.0-green)
+![Версия](https://img.shields.io/badge/version-1.1.0-green)
 ![Лицензия](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ## ✨ Возможности
@@ -62,6 +62,15 @@ node install.js --uninstall
 
 ### Альтернативный запуск (через Console)
 Если вы не хотите менять файлы программы, скопируйте код из файла `autoclicker.js` и вставьте его в консоль разработчика Antigravity (`Ctrl+Shift+I` → вкладка **Console**).
+
+## 🔧 Совместимость
+
+| Версия Antigravity | Поддержка | Примечание |
+|---|---|---|
+| 2.0.6+ | ✅ Полная | Инъекция через `executeJavaScript` (v1.1.0+) |
+| 2.0.0–2.0.5 | ✅ Полная | Инъекция через `executeJavaScript` |
+
+> **Примечание:** Начиная с v1.1.0 используется метод `webContents.executeJavaScript()` вместо DOM-инъекции. Это решает проблему с `contextIsolation: true` в новых версиях Antigravity.
 
 ## ⚙️ Настройки виджета
 

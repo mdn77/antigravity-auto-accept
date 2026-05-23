@@ -1,18 +1,19 @@
 /**
- * install.js - Установщик для Antigravity Auto-Accept
+ * install.js - Установщик для Antigravity (автокликер и русификатор отдельно)
  * 
- * Автоматически внедряет скрипт автокликера в app.asar текстового редактора Antigravity.
+ * Внедряет выбранные скрипты в app.asar текстового редактора Antigravity Chat 2.0.
  * 
  * Использование:
- *   node install.js              - Установить плагин
- *   node install.js --uninstall  - Удалить плагин (восстановить из бэкапа)
+ *   node install.js                    - Установить всё (автокликер + русификатор)
+ *   node install.js --only-clicker     - Установить только автокликер
+ *   node install.js --only-russifier   - Установить только русификатор
+ *   node install.js --uninstall        - Восстановить оригинальный app.asar из бэкапа
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Поиск папки установки Antigravity в зависимости от операционной системы
 function findAntigravityPath() {
     const platform = process.platform;
     const possiblePaths = [];
@@ -44,14 +45,17 @@ function findAntigravityPath() {
     return null;
 }
 
-// Запуск процесса установки
 function install() {
-    console.log('=== Установщик Antigravity Auto-Accept ===\n');
+    console.log('=== Установщик Antigravity Chat 2.0 (Раздельный) ===\n');
+
+    const onlyClicker = process.argv.includes('--only-clicker');
+    const onlyRussifier = process.argv.includes('--only-russifier');
+    const installClicker = !onlyRussifier;
+    const installRussifier = !onlyClicker;
 
     const resourcesDir = findAntigravityPath();
     if (!resourcesDir) {
         console.error('ОШИБКА: Путь установки Antigravity не найден!');
-        console.log('Убедитесь, что приложение Antigravity установлено.');
         process.exit(1);
     }
 
@@ -60,100 +64,148 @@ function install() {
     const extractDir = path.join(resourcesDir, '_asar_temp');
 
     console.log('Путь Antigravity:', resourcesDir);
-    console.log('');
 
-    // Шаг 1: Создание резервной копии
+    // 1. Создание бэкапа
     if (!fs.existsSync(backupPath)) {
-        console.log('[1/4] Создание резервной копии app.asar...');
+        console.log('Создание резервной копии app.asar...');
         fs.copyFileSync(asarPath, backupPath);
-        console.log('  Резервная копия сохранена:', backupPath);
-    } else {
-        console.log('[1/4] Резервная копия уже существует, шаг пропущен.');
     }
 
-    // Шаг 2: Извлечение asar архива
-    console.log('[2/4] Распаковка app.asar...');
+    // 2. Распаковка
+    console.log('Распаковка app.asar...');
     try {
         execSync(`npx -y @electron/asar extract "${asarPath}" "${extractDir}"`, { stdio: 'pipe' });
     } catch (e) {
-        console.error('ОШИБКА: Не удалось извлечь архив asar. Убедитесь, что Node.js установлен.');
+        console.error('ОШИБКА: Не удалось извлечь архив asar.');
         process.exit(1);
     }
 
-    // Шаг 3: Внедрение автокликера
-    console.log('[3/4] Внедрение автокликера...');
-    const autoclickerSrc = path.join(__dirname, 'autoclicker.js');
-    const autoclickerDst = path.join(extractDir, 'dist', 'antig_autoclicker.js');
-    fs.copyFileSync(autoclickerSrc, autoclickerDst);
-
-    // Внедрение загрузчика в utils.js через executeJavaScript (Antigravity 2.0.6+)
-    // utils.js — main-процесс, window/document недоступны.
-    // Правильный метод: executeJavaScript в обработчике did-finish-load.
     const utilsPath = path.join(extractDir, 'dist', 'utils.js');
-    if (fs.existsSync(utilsPath)) {
-        let utilsContent = fs.readFileSync(utilsPath, 'utf8');
-        if (!utilsContent.includes('antig_autoclicker')) {
-            // Ищем обработчик did-finish-load (AntiG widget или стандартный)
-            const didFinishMarker = "win.webContents.on('did-finish-load'";
-            const markerPos = utilsContent.indexOf(didFinishMarker);
-            
-            // Код инъекции через executeJavaScript (работает с contextIsolation: true)
+    if (!fs.existsSync(utilsPath)) {
+        console.error('ОШИБКА: dist/utils.js не найден внутри app.asar!');
+        fs.rmSync(extractDir, { recursive: true, force: true });
+        process.exit(1);
+    }
+
+    let utilsContent = fs.readFileSync(utilsPath, 'utf8');
+
+    // Ищем обработчик did-finish-load или loadURL для инъекции
+    const didFinishMarker = "win.webContents.on('did-finish-load'";
+    const markerPos = utilsContent.indexOf(didFinishMarker);
+
+    // 3. Обработка Автокликера
+    const acDst = path.join(extractDir, 'dist', 'antig_autoclicker.js');
+    if (installClicker) {
+        console.log('Установка Автокликера...');
+        const acSrc = path.join(__dirname, 'autoclicker.js');
+        fs.copyFileSync(acSrc, acDst);
+
+        if (!utilsContent.includes('antig_autoclicker.js')) {
             const injectionCode = `
-    // --- Автокликер Auto-Accept (загрузка через executeJavaScript) ---
+    // --- Автокликер Auto-Accept ---
     win.webContents.on('did-finish-load', () => {
         try {
-            const acPath = require('path').join(__dirname, 'antig_autoclicker.js');
-            const acCode = require('fs').readFileSync(acPath, 'utf8');
-            win.webContents.executeJavaScript(acCode).catch(() => {});
-            console.log('[AC] Автокликер внедрён через executeJavaScript');
+            const fs = require('fs');
+            const path = require('path');
+            const acPath = path.join(__dirname, 'antig_autoclicker.js');
+            if (fs.existsSync(acPath)) {
+                win.webContents.executeJavaScript(fs.readFileSync(acPath, 'utf8')).catch(() => {});
+                console.log('[AC] Автокликер внедрён');
+            }
         } catch(e) { console.error('[AC] Ошибка загрузки автокликера:', e); }
     });
     // --- Конец загрузчика Auto-Accept ---
 `;
-
             if (markerPos !== -1) {
-                // Вставляем ДО существующего did-finish-load
                 utilsContent = utilsContent.slice(0, markerPos) + injectionCode + utilsContent.slice(markerPos);
             } else {
-                // Fallback: ищем void win.loadURL(url) и вставляем после
-                const loadUrlMarker = 'void win.loadURL(url)';
-                const loadPos = utilsContent.indexOf(loadUrlMarker);
-                if (loadPos !== -1) {
-                    const insertPos = utilsContent.indexOf(';', loadPos) + 1;
-                    utilsContent = utilsContent.slice(0, insertPos) + '\n' + injectionCode + utilsContent.slice(insertPos);
-                } else {
-                    // Крайний fallback: добавляем в конец (менее надёжно)
-                    utilsContent += injectionCode;
-                    console.log('  ВНИМАНИЕ: не найден did-finish-load, код добавлен в конец файла');
-                }
+                utilsContent += injectionCode;
             }
-            fs.writeFileSync(utilsPath, utilsContent, 'utf8');
-            console.log('  Точка загрузки интегрирована в utils.js (метод: executeJavaScript)');
-        } else {
-            console.log('  Точка загрузки уже присутствует в utils.js');
+            console.log('  Загрузчик автокликера добавлен в utils.js');
         }
+    } else {
+        // Удаление автокликера из сборки
+        if (fs.existsSync(acDst)) {
+            fs.unlinkSync(acDst);
+            console.log('  Удален файл автокликера.');
+        }
+        // Вырезаем код автокликера из utilsContent
+        const lines = utilsContent.split('\n');
+        let inAcBlock = false;
+        utilsContent = lines.filter(line => {
+            if (line.includes('// --- Автокликер Auto-Accept ---')) { inAcBlock = true; return false; }
+            if (line.includes('// --- Конец загрузчика Auto-Accept ---')) { inAcBlock = false; return false; }
+            return !inAcBlock;
+        }).join('\n');
+        console.log('  Загрузчик автокликера удален из utils.js');
     }
 
-    // Шаг 4: Сборка asar архива обратно
-    console.log('[4/4] Сборка app.asar...');
+    // 4. Обработка Русификатора
+    const ruDst = path.join(extractDir, 'dist', 'antig_russify.js');
+    if (installRussifier) {
+        console.log('Установка Русификатора...');
+        const ruSrc = path.join(__dirname, 'russify.js');
+        fs.copyFileSync(ruSrc, ruDst);
+
+        if (!utilsContent.includes('antig_russify.js')) {
+            const injectionCode = `
+    // --- Русификатор Russifier ---
+    win.webContents.on('did-finish-load', () => {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const ruPath = path.join(__dirname, 'antig_russify.js');
+            if (fs.existsSync(ruPath)) {
+                win.webContents.executeJavaScript(fs.readFileSync(ruPath, 'utf8')).catch(() => {});
+                console.log('[RU] Русификатор внедрён');
+            }
+        } catch(e) { console.error('[RU] Ошибка загрузки русификатора:', e); }
+    });
+    // --- Конец загрузчика Russifier ---
+`;
+            const freshMarkerPos = utilsContent.indexOf(didFinishMarker);
+            if (freshMarkerPos !== -1) {
+                utilsContent = utilsContent.slice(0, freshMarkerPos) + injectionCode + utilsContent.slice(freshMarkerPos);
+            } else {
+                utilsContent += injectionCode;
+            }
+            console.log('  Загрузчик русификатора добавлен в utils.js');
+        }
+    } else {
+        // Удаление русификатора из сборки
+        if (fs.existsSync(ruDst)) {
+            fs.unlinkSync(ruDst);
+            console.log('  Удален файл русификатора.');
+        }
+        // Вырезаем код русификатора из utilsContent
+        const lines = utilsContent.split('\n');
+        let inRuBlock = false;
+        utilsContent = lines.filter(line => {
+            if (line.includes('// --- Русификатор Russifier ---')) { inRuBlock = true; return false; }
+            if (line.includes('// --- Конец загрузчика Russifier ---')) { inRuBlock = false; return false; }
+            return !inRuBlock;
+        }).join('\n');
+        console.log('  Загрузчик русификатора удален из utils.js');
+    }
+
+    fs.writeFileSync(utilsPath, utilsContent, 'utf8');
+
+    // 5. Упаковка asar архива обратно
+    console.log('Сборка app.asar...');
     try {
         execSync(`npx -y @electron/asar pack "${extractDir}" "${asarPath}"`, { stdio: 'pipe' });
     } catch (e) {
         console.error('ОШИБКА: Не удалось собрать asar архив.');
+        fs.rmSync(extractDir, { recursive: true, force: true });
         process.exit(1);
     }
 
-    // Удаление временной директории
     fs.rmSync(extractDir, { recursive: true, force: true });
-
     console.log('\n=== Установка успешно завершена! ===');
-    console.log('Перезапустите Antigravity для активации автокликера.');
-    console.log('Виджет управления отобразится в правом нижнем углу.\n');
 }
 
-// Запуск процесса удаления
 function uninstall() {
-    console.log('=== Удаление Antigravity Auto-Accept ===\n');
+    console.log('=== Удаление из Antigravity ===\n');
 
     const resourcesDir = findAntigravityPath();
     if (!resourcesDir) {
@@ -165,11 +217,11 @@ function uninstall() {
     const backupPath = path.join(resourcesDir, 'app.asar.backup');
 
     if (fs.existsSync(backupPath)) {
-        console.log('Восстановление оригинального app.asar из бэкапа...');
         fs.copyFileSync(backupPath, asarPath);
-        console.log('Удаление успешно завершено! Перезапустите Antigravity.\n');
+        console.log('app.asar восстановлен из оригинального бэкапа.');
+        console.log('Удаление успешно завершено!\n');
     } else {
-        console.error('ОШИБКА: Файл резервной копии не найден.');
+        console.error('ОШИБКА: Файл бэкапа app.asar.backup не найден.');
         process.exit(1);
     }
 }

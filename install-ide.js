@@ -1,21 +1,22 @@
 /**
- * install-ide.js — Установщик автокликера для Antigravity IDE
+ * install-ide.js — Установщик для Antigravity IDE (автокликер и русификатор отдельно)
  * 
  * IDE использует распакованную структуру (app/), а не app.asar.
- * Инъекция через <script> тег в workbench.html.
+ * Инъекция через <script> теги в workbench.html.
  * 
  * Использование:
- *   node install-ide.js              — Установить
- *   node install-ide.js --uninstall  — Удалить (восстановить из бэкапа)
+ *   node install-ide.js                    — Установить всё (автокликер + русификатор)
+ *   node install-ide.js --only-clicker     — Установить только автокликер
+ *   node install-ide.js --only-russifier   — Установить только русификатор
+ *   node install-ide.js --uninstall        — Удалить всё
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Маркер для поиска инъекции
-const MARKER = '<!-- AntiG AutoClicker -->';
+const MARKER_AC = '<!-- AntiG AutoClicker -->';
+const MARKER_RU = '<!-- AntiG Russifier -->';
 
-// Поиск директории ресурсов IDE
 function findIDEPath() {
     const platform = process.platform;
     const paths = [];
@@ -37,7 +38,6 @@ function findIDEPath() {
     }
 
     for (const p of paths) {
-        // IDE может использовать app/ (распакованная) или app.asar
         const appDir = path.join(p, 'app');
         const appAsar = path.join(p, 'app.asar');
         if (fs.existsSync(appDir) && fs.statSync(appDir).isDirectory()) {
@@ -50,7 +50,6 @@ function findIDEPath() {
     return null;
 }
 
-// Поиск workbench.html в распакованной структуре
 function findWorkbenchHtml(appDir) {
     const candidates = [
         path.join(appDir, 'out', 'vs', 'code', 'electron-browser', 'workbench', 'workbench.html'),
@@ -59,12 +58,9 @@ function findWorkbenchHtml(appDir) {
     for (const c of candidates) {
         if (fs.existsSync(c)) return c;
     }
-    // Рекурсивный поиск
-    const found = findFileRecursive(appDir, 'workbench.html', 3);
-    return found;
+    return findFileRecursive(appDir, 'workbench.html', 3);
 }
 
-// Рекурсивный поиск файла (с ограничением глубины)
 function findFileRecursive(dir, name, maxDepth, depth = 0) {
     if (depth > maxDepth) return null;
     try {
@@ -81,79 +77,112 @@ function findFileRecursive(dir, name, maxDepth, depth = 0) {
     return null;
 }
 
-// Установка
 function install() {
-    console.log('=== Установщик AutoClick для Antigravity IDE ===\n');
+    console.log('=== Установщик Antigravity IDE (Раздельный) ===\n');
+
+    const onlyClicker = process.argv.includes('--only-clicker');
+    const onlyRussifier = process.argv.includes('--only-russifier');
+    const installClicker = !onlyRussifier;
+    const installRussifier = !onlyClicker;
 
     const ide = findIDEPath();
     if (!ide) {
         console.error('ОШИБКА: Antigravity IDE не найдена!');
-        console.log('Убедитесь, что IDE установлена.');
         process.exit(1);
     }
-
-    console.log('Тип:', ide.type);
-    console.log('Путь:', ide.resourcesDir);
 
     if (ide.type !== 'unpacked') {
-        console.error('ОШИБКА: IDE использует app.asar. Используйте install.js для asar-инсталляции.');
+        console.error('ОШИБКА: IDE использует app.asar. Данный установщик рассчитан на unpacked.');
         process.exit(1);
     }
 
-    // Шаг 1: Находим workbench.html
     const workbenchHtml = findWorkbenchHtml(ide.appDir);
     if (!workbenchHtml) {
         console.error('ОШИБКА: workbench.html не найден!');
         process.exit(1);
     }
-    console.log('workbench.html:', workbenchHtml);
+    console.log('workbench.html найден:', workbenchHtml);
 
     const workbenchDir = path.dirname(workbenchHtml);
     const backupPath = workbenchHtml + '.backup';
-    const autoclickerDst = path.join(workbenchDir, 'antig_autoclicker.js');
 
-    // Шаг 2: Бэкап
+    // 1. Создание бэкапа
     if (!fs.existsSync(backupPath)) {
-        console.log('\n[1/3] Создание бэкапа workbench.html...');
+        console.log('Создание бэкапа workbench.html...');
         fs.copyFileSync(workbenchHtml, backupPath);
-        console.log('  Бэкап:', backupPath);
-    } else {
-        console.log('\n[1/3] Бэкап уже существует.');
     }
 
-    // Шаг 3: Копируем autoclicker.js
-    console.log('[2/3] Копирование автокликера...');
-    const autoclickerSrc = path.join(__dirname, 'autoclicker.js');
-    fs.copyFileSync(autoclickerSrc, autoclickerDst);
-    console.log('  Скопирован:', autoclickerDst);
-
-    // Шаг 4: Инъекция в workbench.html
-    console.log('[3/3] Инъекция в workbench.html...');
     let html = fs.readFileSync(workbenchHtml, 'utf8');
 
-    if (html.includes(MARKER)) {
-        console.log('  Инъекция уже присутствует — обновляем скрипт.');
-    } else {
-        // Вставляем перед </html>
-        const scriptTag = `\n${MARKER}\n<script src="./antig_autoclicker.js" defer></script>\n`;
-        const insertPos = html.lastIndexOf('</html>');
-        if (insertPos !== -1) {
-            html = html.slice(0, insertPos) + scriptTag + html.slice(insertPos);
-        } else {
-            html += scriptTag;
+    // 2. Копирование и инъекция автокликера
+    const acDst = path.join(workbenchDir, 'antig_autoclicker.js');
+    if (installClicker) {
+        console.log('Установка Автокликера...');
+        const acSrc = path.join(__dirname, 'autoclicker.js');
+        fs.copyFileSync(acSrc, acDst);
+        console.log('  Скопирован:', acDst);
+
+        if (!html.includes(MARKER_AC)) {
+            const tag = `\n${MARKER_AC}\n<script src="./antig_autoclicker.js" defer></script>\n`;
+            const pos = html.lastIndexOf('</html>');
+            if (pos !== -1) {
+                html = html.slice(0, pos) + tag + html.slice(pos);
+            } else {
+                html += tag;
+            }
+            console.log('  Добавлен тег автокликера в workbench.html');
         }
-        fs.writeFileSync(workbenchHtml, html, 'utf8');
-        console.log('  Тег <script> добавлен в workbench.html');
+    } else {
+        // Удаляем из html если был
+        if (html.includes(MARKER_AC)) {
+            const lines = html.split('\n');
+            html = lines.filter(line => !line.includes('antig_autoclicker.js') && !line.includes(MARKER_AC)).join('\n');
+            console.log('  Тег автокликера исключен/удален из html.');
+        }
+        if (fs.existsSync(acDst)) {
+            fs.unlinkSync(acDst);
+            console.log('  Удален старый файл автокликера.');
+        }
     }
 
+    // 3. Копирование и инъекция русификатора
+    const ruDst = path.join(workbenchDir, 'antig_russify.js');
+    if (installRussifier) {
+        console.log('Установка Русификатора...');
+        const ruSrc = path.join(__dirname, 'russify.js');
+        fs.copyFileSync(ruSrc, ruDst);
+        console.log('  Скопирован:', ruDst);
+
+        if (!html.includes(MARKER_RU)) {
+            const tag = `\n${MARKER_RU}\n<script src="./antig_russify.js" defer></script>\n`;
+            const pos = html.lastIndexOf('</html>');
+            if (pos !== -1) {
+                html = html.slice(0, pos) + tag + html.slice(pos);
+            } else {
+                html += tag;
+            }
+            console.log('  Добавлен тег русификатора в workbench.html');
+        }
+    } else {
+        // Удаляем из html если был
+        if (html.includes(MARKER_RU)) {
+            const lines = html.split('\n');
+            html = lines.filter(line => !line.includes('antig_russify.js') && !line.includes(MARKER_RU)).join('\n');
+            console.log('  Тег русификатора исключен/удален из html.');
+        }
+        if (fs.existsSync(ruDst)) {
+            fs.unlinkSync(ruDst);
+            console.log('  Удален старый файл русификатора.');
+        }
+    }
+
+    fs.writeFileSync(workbenchHtml, html, 'utf8');
     console.log('\n=== Установка завершена! ===');
-    console.log('Перезапустите Antigravity IDE.');
-    console.log('Виджет AutoClick появится в правом нижнем углу.\n');
+    console.log('Пожалуйста, перезапустите Antigravity IDE.');
 }
 
-// Удаление
 function uninstall() {
-    console.log('=== Удаление AutoClick из Antigravity IDE ===\n');
+    console.log('=== Удаление из Antigravity IDE ===\n');
 
     const ide = findIDEPath();
     if (!ide || ide.type !== 'unpacked') {
@@ -168,36 +197,37 @@ function uninstall() {
     }
 
     const backupPath = workbenchHtml + '.backup';
-    const autoclickerPath = path.join(path.dirname(workbenchHtml), 'antig_autoclicker.js');
+    const acDst = path.join(path.dirname(workbenchHtml), 'antig_autoclicker.js');
+    const ruDst = path.join(path.dirname(workbenchHtml), 'antig_russify.js');
 
-    // Восстанавливаем из бэкапа
     if (fs.existsSync(backupPath)) {
         fs.copyFileSync(backupPath, workbenchHtml);
         console.log('workbench.html восстановлен из бэкапа.');
     } else {
-        // Ручное удаление инъекции
         let html = fs.readFileSync(workbenchHtml, 'utf8');
-        const markerIdx = html.indexOf(MARKER);
-        if (markerIdx !== -1) {
-            const endIdx = html.indexOf('</script>', markerIdx);
-            if (endIdx !== -1) {
-                html = html.slice(0, markerIdx) + html.slice(endIdx + '</script>\n'.length);
-                fs.writeFileSync(workbenchHtml, html, 'utf8');
-                console.log('Инъекция удалена из workbench.html.');
-            }
-        }
+        const lines = html.split('\n');
+        html = lines.filter(line => 
+            !line.includes('antig_autoclicker.js') && 
+            !line.includes(MARKER_AC) &&
+            !line.includes('antig_russify.js') &&
+            !line.includes(MARKER_RU)
+        ).join('\n');
+        fs.writeFileSync(workbenchHtml, html, 'utf8');
+        console.log('Теги инъекции удалены из workbench.html.');
     }
 
-    // Удаляем файл автокликера
-    if (fs.existsSync(autoclickerPath)) {
-        fs.unlinkSync(autoclickerPath);
-        console.log('antig_autoclicker.js удалён.');
+    if (fs.existsSync(acDst)) {
+        fs.unlinkSync(acDst);
+        console.log('antig_autoclicker.js удален.');
+    }
+    if (fs.existsSync(ruDst)) {
+        fs.unlinkSync(ruDst);
+        console.log('antig_russify.js удален.');
     }
 
-    console.log('\nУдаление завершено! Перезапустите IDE.\n');
+    console.log('\nУдаление успешно завершено!');
 }
 
-// Точка входа
 if (process.argv.includes('--uninstall')) {
     uninstall();
 } else {

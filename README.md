@@ -1,9 +1,13 @@
-# Antigravity Tools: Auto-Accept & Russifier
+# Antigravity Tools: Auto-Accept & Russifier (Версия 1.2.0)
 
 Репозиторий содержит два раздельных инструмента для **Antigravity Chat 2.0** и **Antigravity IDE**:
 
 1. 🔵 **Автокликер (`autoclicker.js`)** — автоматически нажимает кнопки Submit/Отправить, Retry/Повторить, Accept/Разрешить, а также содержит виджет управления в правом нижнем углу и логику обхода проектов. Не содержит кода перевода интерфейса.
-2. 🇷🇺 **Русификатор (`russify.js`)** — полностью переводит весь интерфейс настроек безопасности, аккаунта, разрешений файлов/команд, моделей ИИ и параметров редактора на русский язык (включая контент в Shadow DOM и iframe). Не содержит кода автокликера.
+2. 🇷🇺 **Русификатор (`russify.js`)** — полностью переводит весь интерфейс настроек безопасности, аккаунта, разрешений файлов/команд, моделей ИИ и параметров редактора на русский язык (включая контент в Shadow DOM, iframe и панели настроек агента `workbench-jetski-agent.html` с полным обходом CSP). Не содержит кода автокликера.
+
+## Совместимость
+* **Antigravity Chat 2.0** (проверено на версии 2.0.6 и выше)
+* **Antigravity IDE** (все версии, включая те, что используют панели агента/настроек `workbench-jetski-agent.html`)
 
 Вы можете установить только один из них или оба вместе.
 
@@ -86,7 +90,10 @@ node install-ide.js --uninstall
 Установщик распаковывает архив `app.asar`, копирует выбранные файлы скриптов (`antig_autoclicker.js` и/или `antig_russify.js`) в папку `dist/`, внедряет вызовы `executeJavaScript` в `utils.js` на событие `did-finish-load` и собирает архив обратно.
 
 ### IDE
-Установщик копирует выбранные скрипты в папку `workbench` и внедряет теги `<script src="./antig_autoclicker.js" defer></script>` и/или `<script src="./antig_russify.js" defer></script>` в `workbench.html`.
+Установщик выполняет следующие действия:
+1. Копирует скрипты в папку `workbench`.
+2. Внедряет теги `<script src="./antig_autoclicker.js" defer></script>` и/или `<script src="./antig_russify.js" defer></script>` в `workbench.html` и `workbench-jetski-agent.html` (отвечающий за настройки и панель агента).
+3. Внедряет inline-код русификатора в `webview/index.html` с автоматической модификацией Content-Security-Policy заголовка для успешного обхода ограничений безопасности (CSP).
 
 ## Лицензия
 MIT

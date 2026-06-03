@@ -142,7 +142,7 @@ function createPopup(pos){
     s.appendChild(sPd);p.appendChild(s);
     document.body.appendChild(p);st.popup=p;
 
-    p.addEventListener('click', function(e) { e.stopPropagation(); }, true);
+    p.addEventListener('click', function(e) { e.stopPropagation(); });
 
     var stopKeys = function(e) { e.stopPropagation(); };
     mI.addEventListener('keydown', stopKeys, true);

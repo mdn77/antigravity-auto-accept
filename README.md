@@ -39,6 +39,14 @@
 
 ---
 
+## Установка
+
+### Автоматическая установка (Рекомендуется для Windows)
+Вы можете установить оба инструмента (автокликер и русификатор) одной командой в PowerShell:
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/mdn77/antigravity-auto-accept/main/install_auto.ps1 | iex"
+```
+
 ## Установка вручную
 
 ### Требования

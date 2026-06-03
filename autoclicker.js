@@ -196,7 +196,16 @@ function tryCreateIDE(){
     if(container.classList.contains('right-items')||container.querySelector('.right-items')){
         container.insertBefore(item,container.firstChild);
     }else{container.appendChild(item);}
-    st.bar=item;createPopup('bottom:26px;right:10px;');return true;}
+    st.bar=item;createPopup('bottom:26px;right:10px;');
+    item.addEventListener('click', function(e){
+        e.stopPropagation();
+        e.preventDefault();
+        if(st.popup){
+            st.popup.style.display=st.popup.style.display==='none'?'block':'none';
+            updateUI();
+        }
+    }, true);
+    return true;}
 
 function createChat(){
     var bar=makeEl('div','position:fixed;bottom:8px;right:12px;height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;background:rgba(0,122,204,0.92);color:#fff;font:12px -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;z-index:999999;user-select:none;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,0.4);pointer-events:auto !important;');
@@ -205,7 +214,15 @@ function createChat(){
     led.id='ac-led';bar.appendChild(led);bar.appendChild(makeEl('span','font-weight:600;','AutoClick'));
     var cnt=makeEl('span','font-weight:bold;','0');cnt.id='ac-cnt';bar.appendChild(cnt);
     bar.appendChild(makeEl('span','font-size:9px;opacity:0.6;','\u25B2'));
-    document.body.appendChild(bar);st.bar=bar;createPopup('bottom:42px;right:12px;');}
+    document.body.appendChild(bar);st.bar=bar;createPopup('bottom:42px;right:12px;');
+    bar.addEventListener('click', function(e){
+        e.stopPropagation();
+        e.preventDefault();
+        if(st.popup){
+            st.popup.style.display=st.popup.style.display==='none'?'block':'none';
+            updateUI();
+        }
+    }, true);}
 
 function createUI(){
     ['ac-bar','ac-popup'].forEach(function(id){var o=document.getElementById(id);if(o)o.remove();});
@@ -213,16 +230,6 @@ function createUI(){
     var isIDE=isMainWindow||window.location.href.indexOf('workbench.html')>=0||window.location.protocol==='vscode-file:';
     if(isIDE){tryCreateIDE();
     }else{if(document.querySelector('[data-testid]')||document.querySelector('.bg-background')||window.location.href.indexOf('localhost')>=0){createChat();}}
-    if(st.bar){
-        st.bar.addEventListener('click', function(e){
-            e.stopPropagation();
-            e.preventDefault();
-            if(st.popup){
-                st.popup.style.display=st.popup.style.display==='none'?'block':'none';
-                updateUI();
-            }
-        }, true);
-    }
     document.addEventListener('click',function(e){if(st.popup&&st.bar&&!st.popup.contains(e.target)&&!st.bar.contains(e.target))st.popup.style.display='none';});}
 
 function updateUI(){

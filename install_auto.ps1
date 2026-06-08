@@ -1,14 +1,19 @@
 # install_auto.ps1 — Автоматический установщик автокликера и русификатора Antigravity
-# Скачивает нужные файлы с GitHub во временную папку и запускает установку.
+# Скачивает нужные файлы с GitHub, устанавливает моды и настраивает автоматическую
+# переустановку после обновлений (страж).
 
 $ErrorActionPreference = "Stop"
+
+Write-Host ""
+Write-Host "=== Antigravity Auto-Accept: Установка ===" -ForegroundColor Cyan
+Write-Host ""
 
 # Проверка наличия Node.js
 try {
     $nodeVersion = node -v
-    Write-Host "[AC] Найдена Node.js: $nodeVersion" -ForegroundColor Green
+    Write-Host "[OK] Node.js: $nodeVersion" -ForegroundColor Green
 } catch {
-    Write-Error "[AC] ОШИБКА: Node.js не установлен! Установите Node.js (https://nodejs.org) перед запуском."
+    Write-Error "[!] Node.js не установлен! Установите: https://nodejs.org"
     exit 1
 }
 
@@ -20,24 +25,37 @@ if (Test-Path $tempDir) {
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 
 $baseUrl = "https://raw.githubusercontent.com/mdn77/antigravity-auto-accept/main"
-$files = @("install.js", "install-ide.js", "autoclicker.js", "russify.js")
+$files = @("install.js", "install-ide.js", "autoclicker.js", "russify.js", "guard.ps1", "package.json")
 
-Write-Host "[AC] Загрузка файлов установки..." -ForegroundColor Cyan
+Write-Host "[..] Загрузка файлов..." -ForegroundColor Cyan
 foreach ($file in $files) {
     $url = "$baseUrl/$file"
     $dest = Join-Path $tempDir $file
-    Write-Host "  Скачивание $file..."
+    Write-Host "  $file"
     Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
 }
 
-Write-Host "[AC] Запуск установки для Antigravity Chat 2.0 (install.js)..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[..] Установка для Chat 2.0..." -ForegroundColor Cyan
 Push-Location $tempDir
 try {
     node install.js
-    Write-Host "[AC] Запуск установки для Antigravity IDE (install-ide.js)..." -ForegroundColor Cyan
+
+    Write-Host ""
+    Write-Host "[..] Установка для IDE..." -ForegroundColor Cyan
     node install-ide.js
+
+    # Установка стража (автоматическая переустановка после обновлений)
+    Write-Host ""
+    Write-Host "[..] Установка стража обновлений..." -ForegroundColor Cyan
+    powershell -ExecutionPolicy Bypass -File (Join-Path $tempDir "guard.ps1") -Install
+
 } finally {
     Pop-Location
-    # Очистка
     Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+Write-Host ""
+Write-Host "=== Готово! Перезапустите Antigravity ===" -ForegroundColor Green
+Write-Host "  Моды будут автоматически восстанавливаться после обновлений." -ForegroundColor DarkGray
+Write-Host ""

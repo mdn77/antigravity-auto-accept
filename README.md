@@ -1,9 +1,10 @@
-# Antigravity Tools: Auto-Accept & Russifier (Версия 1.2.0)
+# Antigravity Tools: Auto-Accept & Russifier (Версия 1.3.0)
 
-Репозиторий содержит два раздельных инструмента для **Antigravity Chat 2.0** и **Antigravity IDE**:
+Репозиторий содержит инструменты для **Antigravity Chat 2.0** и **Antigravity IDE**:
 
 1. 🔵 **Автокликер (`autoclicker.js`)** — автоматически нажимает кнопки Submit/Отправить, Retry/Повторить, Accept/Разрешить, а также содержит виджет управления в правом нижнем углу и логику обхода проектов. Не содержит кода перевода интерфейса.
 2. 🇷🇺 **Русификатор (`russify.js`)** — полностью переводит весь интерфейс настроек безопасности, аккаунта, разрешений файлов/команд, моделей ИИ и параметров редактора на русский язык (включая контент в Shadow DOM, iframe и панели настроек агента `workbench-jetski-agent.html` с полным обходом CSP). Не содержит кода автокликера.
+3. 🛡️ **Страж обновлений (`guard.ps1`)** — автоматически переустанавливает моды после обновлений Antigravity. Работает в фоне, незаметно для пользователя.
 
 ## Совместимость
 * **Antigravity Chat 2.0** (проверено на версии 2.0.6 и выше)
@@ -13,7 +14,15 @@
 
 ---
 
-## Инструкция для ИИ-агентов (Cascade, Antigravity, etc.)
+## Установка
+
+### Автоматическая установка (Рекомендуется для Windows)
+Одна команда в PowerShell — установит автокликер, русификатор **и** страж обновлений:
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/mdn77/antigravity-auto-accept/main/install_auto.ps1 | iex"
+```
+
+### Инструкция для ИИ-агентов (Cascade, Antigravity, etc.)
 
 ИИ-агенты могут выполнить установку одной командой:
 
@@ -35,17 +44,13 @@
      ```bash
      node install.js --only-russifier && node install-ide.js --only-russifier
      ```
-3. Сообщите пользователю о необходимости перезапустить приложение Antigravity.
+3. (Опционально) Установите страж обновлений:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File guard.ps1 -Install
+   ```
+4. Сообщите пользователю о необходимости перезапустить приложение Antigravity.
 
 ---
-
-## Установка
-
-### Автоматическая установка (Рекомендуется для Windows)
-Вы можете установить оба инструмента (автокликер и русификатор) одной командой в PowerShell:
-```powershell
-powershell -c "irm https://raw.githubusercontent.com/mdn77/antigravity-auto-accept/main/install_auto.ps1 | iex"
-```
 
 ## Установка вручную
 
@@ -81,6 +86,42 @@ node install-ide.js --only-russifier
 
 ---
 
+## 🛡️ Страж обновлений (guard.ps1)
+
+**Проблема:** каждый раз при обновлении Antigravity файл `app.asar` перезаписывается и моды пропадают.
+
+**Решение:** страж (`guard.ps1`) работает в фоне и автоматически переустанавливает моды сразу после обновления.
+
+### Установка стража
+```powershell
+# Из папки репозитория:
+powershell -ExecutionPolicy Bypass -File guard.ps1 -Install
+```
+
+### Как это работает
+1. Копирует необходимые файлы в `%APPDATA%\AntigravityGuard\`
+2. Создаёт скрипт автозапуска в папке `Startup` Windows
+3. При входе в систему запускается скрытый процесс-наблюдатель
+4. Наблюдатель использует `FileSystemWatcher` для мгновенного обнаружения изменений `app.asar`
+5. При обнаружении изменения ждёт 15 секунд (чтобы обновление завершилось) и переустанавливает моды
+
+### Управление стражем
+```powershell
+# Проверить статус
+powershell -ExecutionPolicy Bypass -File guard.ps1 -Status
+
+# Одноразовая проверка (без запуска наблюдателя)
+powershell -ExecutionPolicy Bypass -File guard.ps1 -Check
+
+# Полное удаление стража
+powershell -ExecutionPolicy Bypass -File guard.ps1 -Uninstall
+```
+
+### Лог
+Все действия записываются в `%APPDATA%\AntigravityGuard\guard.log`. Лог автоматически ротируется при достижении 512 КБ.
+
+---
+
 ## Удаление
 
 Восстановление оригинальных файлов из резервных копий:
@@ -90,6 +131,9 @@ node install.js --uninstall
 
 # Для IDE
 node install-ide.js --uninstall
+
+# Удалить страж обновлений
+powershell -ExecutionPolicy Bypass -File guard.ps1 -Uninstall
 ```
 
 ## Как это работает
@@ -102,6 +146,9 @@ node install-ide.js --uninstall
 1. Копирует скрипты в папку `workbench`.
 2. Внедряет теги `<script src="./antig_autoclicker.js" defer></script>` и/или `<script src="./antig_russify.js" defer></script>` в `workbench.html` и `workbench-jetski-agent.html` (отвечающий за настройки и панель агента).
 3. Внедряет inline-код русификатора в `webview/index.html` с автоматической модификацией Content-Security-Policy заголовка для успешного обхода ограничений безопасности (CSP).
+
+### Страж обновлений
+Фоновый процесс PowerShell с `FileSystemWatcher` отслеживает изменения `app.asar`. При обнаружении изменения (например, после обновления Antigravity) автоматически запускает `node install.js` для восстановления модов.
 
 ## Лицензия
 MIT

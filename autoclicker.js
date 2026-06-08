@@ -1,4 +1,4 @@
-// autoclicker.js v28 — Чистый автокликер для Chat 2.0 + IDE
+// autoclicker.js v29 — Чистый автокликер для Chat 2.0 + IDE (+ кнопка сброса)
 // IDE: кнопка в статусбаре .part.statusbar
 // Chat 2.0: плавающая кнопка (синяя, круглая)
 (function(){
@@ -133,10 +133,18 @@ function createPopup(pos){
     row.appendChild(pI);row.appendChild(makeEl('span','color:#666;','с'));
     p.appendChild(row);
     var s=makeEl('div','margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#666;');
-    var sr=makeEl('div','');
-    sr.appendChild(document.createTextNode('Нажато: '));var sA=makeEl('span','color:#4ade80;','0');sA.id='s-acc';sr.appendChild(sA);
-    sr.appendChild(document.createTextNode('  Ретраи: '));var sR=makeEl('span','color:#f59e0b;','0');sR.id='s-ret';sr.appendChild(sR);
-    sr.appendChild(document.createTextNode('/'));var sM=makeEl('span','',String(st.maxR));sM.id='s-maxr';sr.appendChild(sM);
+    var sr=makeEl('div','display:flex;align-items:center;justify-content:space-between;');
+    var srL=makeEl('span','');
+    srL.appendChild(document.createTextNode('Нажато: '));var sA=makeEl('span','color:#4ade80;','0');sA.id='s-acc';srL.appendChild(sA);
+    srL.appendChild(document.createTextNode('  Ретраи: '));var sR=makeEl('span','color:#f59e0b;','0');sR.id='s-ret';srL.appendChild(sR);
+    srL.appendChild(document.createTextNode('/'));var sM=makeEl('span','',String(st.maxR));sM.id='s-maxr';srL.appendChild(sM);
+    sr.appendChild(srL);
+    var resetBtn=makeEl('span','cursor:pointer;color:#888;font-size:13px;padding:2px 4px;border-radius:4px;transition:all .2s;','\u21BA');
+    resetBtn.title='Сбросить счётчик';
+    resetBtn.addEventListener('mouseenter',function(){this.style.color='#f87171';this.style.background='rgba(248,113,113,0.15)';});
+    resetBtn.addEventListener('mouseleave',function(){this.style.color='#888';this.style.background='transparent';});
+    resetBtn.addEventListener('click',function(e){e.stopPropagation();st.total=0;st.retryN=0;saveState();updateUI();},true);
+    sr.appendChild(resetBtn);
     s.appendChild(sr);var sPd=makeEl('div','margin-top:2px;');
     var sPs=makeEl('span','color:#4ade80;','Активен');sPs.id='s-pause';sPd.appendChild(sPs);
     s.appendChild(sPd);p.appendChild(s);
